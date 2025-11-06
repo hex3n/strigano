@@ -1,6 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 from app.steg_modules.rgb_bitplanes import extract_rgb_bitplanes
 from app.steg_modules.exif_metadata import extract_exif_metadata
 from app.steg_modules.binwalk_runner import run_binwalk
@@ -211,8 +213,6 @@ async def upload(file: UploadFile = File(...), password: str = Form(default=""))
     {metadata_html}{exiftool_html}{bitplane_html}{super_html}{binwalk_html}{foremost_html}{steghide_html}{zsteg_html}{strings_html}
     <a href='/'>Upload another</a></body></html>
     """)
-
-
 # ===========================
 # AUDIO FORENSICS ROUTE
 # ===========================
@@ -221,6 +221,7 @@ async def audio_analysis(file: UploadFile = File(...)):
     filename = file.filename
     upload_path = f"static/output/{filename}"
 
+    os.makedirs("static/output", exist_ok=True)
     with open(upload_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -228,13 +229,132 @@ async def audio_analysis(file: UploadFile = File(...)):
     results = analyze_audio(upload_path)
 
     html = f"<h2 style='color:#66ccff;'>Audio Forensics Report for {filename}</h2>"
+
     for key, value in results.items():
-        if isinstance(value, str):
+        if key == "SpectrogramPath" and isinstance(value, str) and value.endswith(".html"):
+            rel = value.replace("static/", "")
+            html += f"""
+        <h3>Spectrogram</h3>
+        <div style="text-align:center; margin:20px;">
+            <div style="margin-bottom:10px;">
+                <button onclick="toggleContrast()"
+                        style="padding:6px 10px; background:#222; color:#66ccff; border:1px solid #66ccff; margin-right:6px;">
+                    Contrast
+                </button>
+                <button onclick="toggleInvert()"
+                        style="padding:6px 10px; background:#222; color:#ff6699; border:1px solid #ff6699;">
+                    Invert
+                </button>
+            </div>
+            <iframe id="spectroFrame" src="/static/{rel}"
+                    style="width:96%; height:760px; border:2px solid #66ff99; border-radius:4px;"></iframe>
+        </div>
+        <script>
+        function getPlot() {{
+            const frame = document.getElementById("spectroFrame").contentWindow.document;
+            return frame.querySelector("div.plotly");
+        }}
+        function toggleContrast() {{
+            const p = getPlot(); if(!p) return;
+            const z = [].concat(...p.data[0].z).sort((a,b)=>a-b);
+            const q = q=>z[Math.floor(q*z.length)];
+            const on = p.layout._contrastOn = !p.layout._contrastOn;
+            Plotly.restyle(p, {{
+                zmin:[on?q(0.05):null],
+                zmax:[on?q(0.95):null]
+            }});
+        }}
+        function toggleInvert() {{
+            const p = getPlot(); if(!p) return;
+            const inv = p.layout._invertOn = !p.layout._invertOn;
+            Plotly.restyle(p, {{colorscale: inv?"Inferno_r":"Inferno"}});
+        }}
+        </script>
+        """
+        elif isinstance(value, str):
             html += f"<h4>{key}</h4><pre>{value}</pre>"
         elif isinstance(value, list):
             html += f"<h4>{key}</h4><ul>" + "".join(f"<li>{v}</li>" for v in value) + "</ul>"
-        elif key == "spectrogram":
-            html += f"<h4>Spectrogram</h4><img src='/{value}' style='max-width:90%; border:2px solid #66ccff;'>"
+
+
+
+    # --- AUDIO PLAYER SECTION ---
+    html += f"""
+    <hr>
+    <h3 style="color:#66ccff;">Audio Playback</h3>
+    <div style="text-align:center; margin:20px;">
+        <audio id="audioPlayer" controls src="/{upload_path}"
+               style="width:80%; border:1px solid #66ff99; border-radius:4px;"></audio>
+        <div style="margin-top:15px; display:flex; justify-content:center; gap:10px;">
+            <button onclick="changeSpeed(0.5)" style="padding:5px 10px; background:#222; color:#66ff99; border:1px solid #66ff99;">🐢 0.5x</button>
+            <button onclick="changeSpeed(1)" style="padding:5px 10px; background:#222; color:#66ccff; border:1px solid #66ccff;">🔄 Reset</button>
+            <button onclick="changeSpeed(2)" style="padding:5px 10px; background:#222; color:#ffcc00; border:1px solid #ffcc00;">⚡ 2x</button>
+            <button onclick="reverseAudio()" style="padding:5px 10px; background:#222; color:#ff6699; border:1px solid #ff6699;">⏪ Reverse</button>
+        </div>
+    </div>
+
+    <script>
+    let scale = 1;
+    let contrast = false;
+    let inverted = false;
+
+    // Stretch controls
+    function stretch(delta) {{
+        const input = document.getElementById("stretchInput");
+        if (delta === 0) {{
+            scale = parseFloat(input.value) || 1;
+        }} else {{
+            scale += delta * 0.2;
+            if (scale < 0.2) scale = 0.2;
+            input.value = scale.toFixed(1);
+        }}
+        document.getElementById("spectrogram").style.transform = `scaleX(${{scale}})`;
+    }}
+    document.addEventListener("DOMContentLoaded", () => {{
+        const input = document.getElementById("stretchInput");
+        if (input) input.addEventListener("change", () => stretch(0));
+    }});
+
+    function toggleContrast() {{
+        contrast = !contrast;
+        updateFilters();
+    }}
+    function toggleInvert() {{
+        inverted = !inverted;
+        updateFilters();
+    }}
+    function updateFilters() {{
+        const img = document.getElementById("spectrogram");
+        let filters = [];
+        if (contrast) filters.push("contrast(200%)");
+        if (inverted) filters.push("invert(100%)");
+        img.style.filter = filters.join(" ");
+    }}
+
+    // --- Audio Controls ---
+    const player = document.getElementById("audioPlayer");
+    function changeSpeed(rate) {{
+        player.playbackRate = rate;
+    }}
+
+    async function reverseAudio() {{
+        const audioCtx = new AudioContext();
+        const response = await fetch(player.src);
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        for (let i = 0; i < audioBuffer.numberOfChannels; i++) {{
+            Array.prototype.reverse.call(audioBuffer.getChannelData(i));
+        }}
+        const reversed = audioCtx.createBufferSource();
+        reversed.buffer = audioBuffer;
+        reversed.connect(audioCtx.destination);
+        reversed.start(0);
+    }}
+    </script>
+    """
 
     html += "<hr><a href='/'>Return to main menu</a>"
-    return HTMLResponse(content=f"<html><head><link rel='stylesheet' href='/static/css/style.css'></head><body>{html}</body></html>")
+    return HTMLResponse(
+        content=f"<html><head><link rel='stylesheet' href='/static/css/style.css'></head>"
+                f"<body>{html}</body></html>"
+    )

@@ -1,53 +1,97 @@
-import subprocess, os
-import matplotlib.pyplot as plt
+import os
+import subprocess
 import numpy as np
 from scipy.io import wavfile
+from scipy.signal import spectrogram
+import plotly.graph_objects as go
+from plotly.offline import plot
 
-def analyze_audio(filepath):
-    output = {}
 
-    # --- Metadata (using ffprobe if available)
+def analyze_audio(path):
+    results = {}
+    output_dir = "static/output"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # --- Metadata ---
     try:
-        cmd = ["ffprobe", "-hide_banner", "-show_format", "-show_streams", filepath]
-        meta = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode("utf-8")
-        output["Metadata"] = meta
+        metadata = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_streams", "-show_format", path],
+            stderr=subprocess.STDOUT
+        ).decode(errors="ignore")
+        results["Metadata"] = metadata
     except Exception as e:
-        output["Metadata"] = f"ffprobe not available: {e}"
+        results["Metadata"] = f"⚠️ ffprobe not available: {e}"
 
-    # --- Generate spectrogram (for WAV/MP3)
+    # --- Audacity-style spectrogram (dual channel stacked vertically) ---
     try:
-        if filepath.lower().endswith((".wav", ".mp3", ".flac", ".ogg")):
-            spectrogram_path = os.path.join("static", "output", "spectrogram.png")
+        rate, data = wavfile.read(path)
+        if data.ndim == 1:
+            # Mono → duplicate to mimic stereo layout
+            data = np.column_stack((data, data))
 
-            # Load audio for spectrogram
-            rate, data = wavfile.read(filepath)
-            plt.figure(figsize=(10, 4))
-            plt.specgram(data[:, 0] if len(data.shape) > 1 else data, Fs=rate, cmap="inferno")
-            plt.xlabel("Time (s)")
-            plt.ylabel("Frequency (Hz)")
-            plt.title("Spectrogram")
-            plt.colorbar(label="Intensity (dB)")
-            plt.tight_layout()
-            plt.savefig(spectrogram_path)
-            plt.close()
-            output["spectrogram"] = spectrogram_path
-        else:
-            output["Spectrogram"] = "Unsupported format"
+        left, right = data[:, 0], data[:, 1]
+
+        # High temporal resolution for visible “text” patterns
+        f, t, S_left = spectrogram(left, fs=rate, nperseg=1024, noverlap=900, scaling="density")
+        _, _, S_right = spectrogram(right, fs=rate, nperseg=1024, noverlap=900, scaling="density")
+
+        # Convert to dB
+        S_left_db = 10 * np.log10(S_left + 1e-10)
+        S_right_db = 10 * np.log10(S_right + 1e-10)
+
+        # Normalize dynamic range
+        S_left_db = np.clip(S_left_db, np.percentile(S_left_db, 2), np.percentile(S_left_db, 98))
+        S_right_db = np.clip(S_right_db, np.percentile(S_right_db, 2), np.percentile(S_right_db, 98))
+
+        # Combine vertically with spacing (so they don’t overlap)
+        gap = np.full((50, S_left_db.shape[1]), np.nan)  # visual gap
+        combined = np.vstack((S_left_db, gap, S_right_db))
+        f_combined = np.linspace(0, 2 * f[-1] + 2000, combined.shape[0])
+
+        fig = go.Figure(
+            data=go.Heatmap(
+                z=combined,
+                x=t,
+                y=f_combined,
+                colorscale="Inferno",
+                zsmooth="best",
+                colorbar_title="Power/Frequency (dB/Hz)",
+            )
+        )
+
+        fig.update_layout(
+            title="Audacity-like Dual Channel Spectrogram (Linear Scale)",
+            xaxis_title="Time [s]",
+            yaxis_title="Frequency [Hz]",
+            template="plotly_dark",
+            height=850,
+            margin=dict(l=50, r=50, t=40, b=40),
+        )
+
+        base = os.path.splitext(os.path.basename(path))[0]
+        html_path = os.path.join(output_dir, f"{base}_spectrogram.html")
+        plot(fig, filename=html_path, auto_open=False, include_plotlyjs="cdn")
+        results["SpectrogramPath"] = html_path
+
     except Exception as e:
-        output["Spectrogram"] = str(e)
+        results["SpectrogramPath"] = f"❌ Error generating spectrogram: {e}"
 
-    # --- Strings extraction
+    # --- Extract printable strings ---
     try:
-        result = subprocess.check_output(["strings", filepath]).decode("utf-8").splitlines()
-        output["Embedded Strings"] = result[:50]
+        with open(path, "rb") as f:
+            b = f.read()
+        strings, cur = [], []
+        for byte in b:
+            if 32 <= byte < 127:
+                cur.append(chr(byte))
+            else:
+                if len(cur) >= 4:
+                    strings.append("".join(cur))
+                cur = []
+        if len(cur) >= 4:
+            strings.append("".join(cur))
+        results["Embedded Strings"] = strings[:50] or ["No visible ASCII strings."]
     except Exception as e:
-        output["Embedded Strings"] = [f"Error running strings: {e}"]
+        results["Embedded Strings"] = [f"❌ Error extracting strings: {e}"]
 
-    # --- Binwalk analysis
-    try:
-        binwalk_result = subprocess.check_output(["binwalk", filepath]).decode("utf-8")
-        output["Binwalk Analysis"] = binwalk_result
-    except Exception as e:
-        output["Binwalk Analysis"] = f"Binwalk not available: {e}"
-
-    return output
+    return results
