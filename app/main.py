@@ -74,14 +74,17 @@ def try_hex_decode(s):
 
 def try_rot13_decode(s):
     try:
-        if not re.fullmatch(r"[A-Za-z/\-_\.]+", s):
+        # Only consider long alphabetic strings
+        if not re.fullmatch(r"[A-Za-z]{4,}$", s):
             return None
         decoded = codecs.decode(s, "rot_13")
+        # Only count it as valid if the decoded result looks like readable text
         if decoded != s and re.search(r"[aeiouAEIOU]", decoded):
             return ("ROT13", decoded)
     except Exception:
         pass
     return None
+
 
 
 # ===========================
@@ -197,22 +200,81 @@ async def upload(file: UploadFile = File(...), password: str = Form(default=""))
             plane_filename = f"static/output/{color}_bit{bit}.png"
             highlight = "5px solid #ff66cc" if plane_filename in flagged_images else "1px solid #ccc"
             flag_caption = f"<br><small style='color:#ff66cc;'>🔍 {flagged_dict.get(plane_filename, '')}</small>" if plane_filename in flagged_dict else ""
-            bitplane_html += f"<div style='text-align:center;'><img src='/{plane_filename}' class='zoomable' style='width:350px; border:{highlight};'>{flag_caption}</div>"
+            bitplane_html += f"""
+            <div style='text-align:center;'>
+                <img src='/{plane_filename}' class='zoomable'
+                     onclick="zoomImage('/{plane_filename}')"
+                    style='width:350px; border:{highlight};'>
+                    {flag_caption}
+            </div>
+            """
+
         bitplane_html += "</div><hr>"
 
     # Superimposed
     super_html = "<h3>Superimposed RGB Channels</h3><div style='display:grid;grid-template-columns:repeat(4,1fr);gap:16px;'>"
     for bit in range(8):
         filename = f"static/output/superimposed_bit{bit}.png"
-        super_html += f"<div style='text-align:center;'><img src='/{filename}' style='width:350px;border:2px solid #888;'><small>superimposed_bit{bit}</small></div>"
+        super_html += f"""
+    <div style='text-align:center;'>
+        <img src='/{filename}' class='zoomable'
+            onclick="zoomImage('/{filename}')"
+            style='width:350px;border:2px solid #888;'>
+            <small>superimposed_bit{bit}</small>
+    </div>
+    """
+
     super_html += "</div><hr>"
 
     return HTMLResponse(f"""
-    <html><head><link rel='stylesheet' href='/static/css/style.css'><title>Strigano</title></head>
-    <body>{flag_html}<h2>File uploaded: {filename}</h2>
-    {metadata_html}{exiftool_html}{bitplane_html}{super_html}{binwalk_html}{foremost_html}{steghide_html}{zsteg_html}{strings_html}
-    <a href='/'>Upload another</a></body></html>
-    """)
+<html>
+<head>
+  <link rel='stylesheet' href='/static/css/style.css'>
+  <title>Strigano</title>
+  <style>
+    img.zoomable:hover {{ cursor: zoom-in; }}
+    #zoom-overlay {{
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background-color: rgba(0,0,0,0.95);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }}
+    #zoom-overlay img {{
+        max-width: 95%;
+        max-height: 95%;
+        border: 4px solid white;
+    }}
+  </style>
+  <script>
+    function zoomImage(src) {{
+        const overlay = document.getElementById("zoom-overlay");
+        const zoomImg = document.getElementById("zoom-img");
+        zoomImg.src = src;
+        overlay.style.display = "flex";
+    }}
+    function closeZoom() {{
+        document.getElementById("zoom-overlay").style.display = "none";
+    }}
+  </script>
+</head>
+<body>
+  {flag_html}
+  <h2>File uploaded: {filename}</h2>
+  {metadata_html}{exiftool_html}{bitplane_html}{super_html}{binwalk_html}{foremost_html}{steghide_html}{zsteg_html}{strings_html}
+  <a href='/'>Upload another</a>
+
+  <!-- Zoom Overlay -->
+  <div id="zoom-overlay" onclick="closeZoom()">
+    <img id="zoom-img" src="">
+  </div>
+</body>
+</html>
+""")
+
 # ===========================
 # AUDIO FORENSICS ROUTE
 # ===========================

@@ -1,31 +1,34 @@
-import os
 import subprocess
-import shutil
+import os
 
-def run_steghide(file_path: str, output_dir: str, passphrase: str = ""):
-    steghide_dir = os.path.join(output_dir, "steghide")
-    
-    # Clean previous run
-    if os.path.exists(steghide_dir):
-        shutil.rmtree(steghide_dir)
-    os.makedirs(steghide_dir, exist_ok=True)
+def run_steghide(file_path, output_dir, password=None):
+    """
+    Run steghide extraction on the provided file.
+    If a password is supplied, it's used in the command.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "steghide_extracted.txt")
 
-    # Attempt to extract
-    output_file_path = os.path.join(steghide_dir, "extracted.data")
-    cmd = [
-        "steghide", "extract",
-        "-sf", file_path,
-        "-xf", output_file_path,
-        "-p", passphrase,
-        "-f"  # force overwrite
-    ]
-    
     try:
-        result = subprocess.run(cmd, capture_output=True, check=True)
-        if os.path.exists(output_file_path):
-            return True, "Data extracted!", "steghide/extracted.data"
+        cmd = ["steghide", "extract", "-sf", file_path, "-xf", output_file, "-f"]
+        if password:
+            cmd.extend(["-p", password])
         else:
-            return False, "Steghide ran, but no output file was saved.", None
-    except subprocess.CalledProcessError as e:
-        error_msg = e.stderr.decode().strip()
-        return False, f"Steghide failed: {error_msg}", None
+            cmd.extend(["-p", ""])  # blank password if not given
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        success = "wrote extracted data" in result.stdout.lower() or os.path.exists(output_file)
+
+        if success:
+            return True, result.stdout.strip(), os.path.basename(output_file)
+        else:
+            return False, result.stderr.strip() or result.stdout.strip(), None
+
+    except Exception as e:
+        return False, f"Error running steghide: {e}", None
