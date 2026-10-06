@@ -126,8 +126,10 @@ def build_spectrogram_html(path: str, out_dir: str | Path) -> str:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     name = f"{Path(path).stem}_spectrogram.html"
+    # Inline plotly.js so the spectrogram renders with no internet access,
+    # which matters on a CTF box behind a restrictive VPN.
     plot(fig, filename=str(out / name), auto_open=False,
-         include_plotlyjs="cdn", config=plot_config)
+         include_plotlyjs=True, config=plot_config)
     return name
 
 
