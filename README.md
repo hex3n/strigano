@@ -9,7 +9,7 @@ service or opening a heavy GUI, you run it locally, drop a file in, and read the
 result in seconds.
 
 Built and maintained by **hex3n**.
-
+If you find this tool useful, i'd really appreciate a Star on this repo. Thank you and have fun
 ---
 
 ## What it replaces
