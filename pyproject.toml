@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "strigano"
+version = "2.0.0"
+description = "A stego and forensics triage multi-tool for CTFs, with a web UI and CLI."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "hex3n", email = "115559784+hex3n@users.noreply.github.com" }]
+keywords = ["steganography", "forensics", "ctf", "security", "stego", "bitplane"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Security",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+]
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "jinja2>=3.1",
+  "python-multipart>=0.0.9",
+  "pillow>=10.3",
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "plotly>=5.22",
+  "soundfile>=0.12",
+  "pytesseract>=0.3.10",
+]
+
+[project.urls]
+Homepage = "https://github.com/hex3n/strigano"
+Source = "https://github.com/hex3n/strigano"
+
+[project.scripts]
+strigano = "strigano.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["strigano*"]
+
+[tool.setuptools.package-data]
+strigano = ["web/templates/*.html", "web/static/css/*.css"]

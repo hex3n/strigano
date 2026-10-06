@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% set base = "/output/" ~ r.output_prefix ~ "/" %}
+{% block title %}Strigano audio report: {{ r.filename }}{% endblock %}
+{% block content %}
+<h2>Audio report for <code>{{ r.filename }}</code></h2>
+<p><a href="/">&larr; Analyze another file</a></p>
+
+{% if r.errors %}
+<section class="panel bad-panel">
+  <h3>Errors</h3>
+  <ul>{% for e in r.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if r.flags %}
+<section class="panel flag-panel">
+  <h3>Detected flags</h3>
+  <ul>{% for flag in r.flags %}<li><code>{{ flag }}</code></li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if r.spectrogram_file %}
+<section class="panel">
+  <h3>Spectrogram</h3>
+  <div class="btnrow">
+    <button onclick="resetSpectro()">Reset view</button>
+    <span class="muted">Drag to pan, scroll to zoom, double-click to reset.</span>
+  </div>
+  <iframe id="spectroFrame" src="{{ base }}{{ r.spectrogram_file }}" class="spectro"></iframe>
+</section>
+{% endif %}
+
+{% if r.audio_file %}
+<section class="panel">
+  <h3>Playback</h3>
+  <audio id="player" controls src="{{ base }}{{ r.audio_file }}"></audio>
+  <div class="btnrow">
+    <button onclick="rate(0.5)">0.5x</button>
+    <button onclick="rate(1)">1x</button>
+    <button onclick="rate(2)">2x</button>
+    <button onclick="reverse()">Reverse</button>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Container metadata (ffprobe)</h3>
+  <pre class="scroll">{{ r.metadata }}</pre>
+</section>
+
+<section class="panel">
+  <h3>Embedded strings</h3>
+  <pre class="scroll">{{ r.strings | join("\n") }}</pre>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function resetSpectro() {
+    const fr = document.getElementById("spectroFrame");
+    if (!fr) return;
+    try {
+      const w = fr.contentWindow;
+      const div = w.document.querySelector(".plotly-graph-div");
+      if (div && w.Plotly) {
+        w.Plotly.relayout(div, { "xaxis.autorange": true, "yaxis.autorange": true });
+      }
+    } catch (e) { /* cross-frame access blocked, ignore */ }
+  }
+
+  const player = document.getElementById("player");
+  function rate(x) { if (player) player.playbackRate = x; }
+  async function reverse() {
+    if (!player) return;
+    const ctx = new AudioContext();
+    const buf = await ctx.decodeAudioData(await (await fetch(player.src)).arrayBuffer());
+    for (let c = 0; c < buf.numberOfChannels; c++)
+      Array.prototype.reverse.call(buf.getChannelData(c));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  }
+</script>
+{% endblock %}

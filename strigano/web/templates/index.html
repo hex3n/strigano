@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h2>Image steganography analysis</h2>
+  <p class="muted">Bitplanes, superimposed channels, appended data, strings,
+     metadata, OCR flag detection, plus binwalk / foremost / steghide / zsteg.</p>
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input name="file" type="file" accept="image/*" required>
+    <input name="password" type="text" placeholder="Optional steghide password">
+    <button type="submit">Analyze image</button>
+  </form>
+</section>
+
+<section class="panel accent">
+  <h2>Audio forensics analysis</h2>
+  <p class="muted">Dual-channel spectrogram, container metadata, embedded
+     strings. WAV / FLAC / OGG natively, MP3 via ffmpeg.</p>
+  <form action="/audio" method="post" enctype="multipart/form-data">
+    <input name="file" type="file" accept=".wav,.mp3,.flac,.ogg" required>
+    <button type="submit">Analyze audio</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Tool availability</h2>
+  <p class="muted">Missing tools are skipped, not fatal. Install them for full
+     coverage (see the project README).</p>
+  <ul class="toolgrid">
+    {% for name, ok in tools.items() %}
+      <li class="{{ 'ok' if ok else 'bad' }}">
+        <span class="dot"></span>{{ name }}
+        <em>{{ "ready" if ok else "missing" }}</em>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

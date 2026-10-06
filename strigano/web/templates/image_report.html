@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% set base = "/output/" ~ r.output_prefix ~ "/" %}
+{% block title %}Strigano report: {{ r.filename }}{% endblock %}
+{% block content %}
+<h2>Report for <code>{{ r.filename }}</code></h2>
+<p><a href="/">&larr; Analyze another file</a></p>
+
+{% if r.errors %}
+<section class="panel bad-panel">
+  <h3>Errors</h3>
+  <ul>{% for e in r.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if r.flags %}
+<section class="panel flag-panel">
+  <h3>Detected flags</h3>
+  <ul>
+    {% for img, flag in r.flags %}
+      <li><code>{{ flag }}</code> <span class="muted">({{ img }})</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Metadata (exiftool -json)</h3>
+  <table>
+    {% for key, value in r.metadata.items() %}
+      <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+
+{% for t in r.tools %}
+<section class="panel">
+  <h3>{{ t.name }}</h3>
+  {% if not t.available %}
+    <p class="muted">{{ t.note or (t.name ~ " is not installed.") }}</p>
+  {% else %}
+    {% if t.note %}<p class="muted">{{ t.note }}</p>{% endif %}
+    {% if t.output %}<pre>{{ t.output }}</pre>{% endif %}
+    {% if t.files %}
+      <p>Files:</p>
+      <ul>
+        {% for f in t.files %}
+          <li><a href="{{ base }}{{ f }}" download>{{ f }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if r.appended_file %}
+<section class="panel">
+  <h3>Appended data after EOF</h3>
+  <p><a href="{{ base }}{{ r.appended_file }}" download>{{ r.appended_file }}</a></p>
+</section>
+{% endif %}
+
+{% macro grid(names) %}
+  <div class="imggrid">
+    {% for name in names %}
+      <figure>
+        <img src="{{ base }}{{ name }}" class="zoomable"
+             onclick="zoomImage(this.src)" loading="lazy">
+        <figcaption>{{ name }}</figcaption>
+      </figure>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+<section class="panel">
+  <h3>Bitplanes</h3>
+  {{ grid(r.bitplanes) }}
+</section>
+
+{% if r.superimposed %}
+<section class="panel">
+  <h3>Superimposed RGB bitplanes</h3>
+  {{ grid(r.superimposed) }}
+</section>
+{% endif %}
+
+{% if r.extras %}
+<section class="panel">
+  <h3>Channel and grayscale views</h3>
+  {{ grid(r.extras) }}
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Strings (ASCII)</h3>
+  <pre class="scroll">{{ r.strings_ascii[:200] | join("\n") }}</pre>
+  {% if r.strings_utf16 %}
+    <h3>Strings (UTF-16LE)</h3>
+    <pre class="scroll">{{ r.strings_utf16[:100] | join("\n") }}</pre>
+  {% endif %}
+</section>
+
+<div id="zoom-overlay" onclick="this.style.display='none'">
+  <img id="zoom-img" src="" alt="">
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function zoomImage(src) {
+    const o = document.getElementById("zoom-overlay");
+    document.getElementById("zoom-img").src = src;
+    o.style.display = "flex";
+  }
+</script>
+{% endblock %}

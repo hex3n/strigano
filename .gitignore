@@ -9,5 +9,12 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Tool output
-/static/output/
+# Generated analysis output
+strigano_output/
+out/
+
+# generated demo output
+examples/_out/
+
+# packaging metadata
+*.egg-info/
