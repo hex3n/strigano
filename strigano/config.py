@@ -58,3 +58,8 @@ FLAG_PREFIXES = _DEFAULT_FLAG_PREFIXES + [
 
 # Default subprocess timeout in seconds for external tools.
 TOOL_TIMEOUT = int(os.environ.get("STRIGANO_TOOL_TIMEOUT", "60"))
+
+# Spectrogram time-resolution cap. The heatmap is downsampled to at most this
+# many time columns, so the generated HTML stays small no matter how long the
+# clip is. Override with STRIGANO_SPECTRO_MAXCOLS.
+SPECTRO_MAX_COLS = int(os.environ.get("STRIGANO_SPECTRO_MAXCOLS", "1500"))

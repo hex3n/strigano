@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 from scipy.signal import spectrogram
 
-from .. import tools
+from .. import config, tools
 from .images import extract_strings
 
 try:  # soundfile is optional but strongly preferred
@@ -74,6 +74,24 @@ def ffprobe_metadata(path: str) -> str:
     return (res.stdout or res.stderr).strip() or "No metadata reported."
 
 
+def _maxpool_cols(mat: np.ndarray, max_cols: int) -> np.ndarray:
+    """Downsample a matrix along time (columns) into max_cols max-pooled bins.
+
+    Max-pooling keeps the bright spectrogram features where hidden text lives,
+    rather than averaging them away, and bounds the output size for long clips.
+    """
+    cols = mat.shape[1]
+    if cols <= max_cols:
+        return mat
+    edges = np.linspace(0, cols, max_cols + 1).astype(int)
+    out = np.empty((mat.shape[0], max_cols), dtype=mat.dtype)
+    for i in range(max_cols):
+        a = edges[i]
+        b = edges[i + 1] if edges[i + 1] > a else a + 1
+        out[:, i] = mat[:, a:b].max(axis=1)
+    return out
+
+
 def build_spectrogram_html(path: str, out_dir: str | Path) -> str:
     """Write an interactive dual-channel spectrogram HTML and return its name."""
     import plotly.graph_objects as go
@@ -91,15 +109,24 @@ def build_spectrogram_html(path: str, out_dir: str | Path) -> str:
 
     s_left = 10 * np.log10(s_left + 1e-10)
     s_right = 10 * np.log10(s_right + 1e-10)
+
+    # Cap time resolution so the HTML stays small regardless of clip length.
+    max_cols = config.SPECTRO_MAX_COLS
+    s_left = _maxpool_cols(s_left, max_cols)
+    s_right = _maxpool_cols(s_right, max_cols)
+
     s_left = np.clip(s_left, np.percentile(s_left, 2), np.percentile(s_left, 98))
     s_right = np.clip(s_right, np.percentile(s_right, 2), np.percentile(s_right, 98))
 
     gap = np.full((50, s_left.shape[1]), np.nan)
-    combined = np.vstack((s_left, gap, s_right))
+    # Round to one decimal: dB precision is plenty for a heatmap and it roughly
+    # halves the serialised size.
+    combined = np.round(np.vstack((s_left, gap, s_right)), 1)
     y = np.linspace(0, 2 * f[-1] + 2000, combined.shape[0])
+    x = np.linspace(float(t[0]), float(t[-1]), combined.shape[1])
 
     fig = go.Figure(
-        go.Heatmap(z=combined, x=t, y=y, colorscale="Inferno", zsmooth="best",
+        go.Heatmap(z=combined, x=x, y=y, colorscale="Inferno", zsmooth="best",
                    colorbar_title="dB/Hz")
     )
     fig.update_layout(
