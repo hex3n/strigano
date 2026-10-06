@@ -1,11 +1,9 @@
 # strigano
 
 **A lightweight stego and forensics triage multi-tool for CTFs, built for speed.**
-One upload, one page: the whole first pass on an image or an audio file.
 
 strigano is a super-fast alternative to **Aperi'Solve** (image stego) and
-**Audacity** (audio spectrogram). Instead of round-tripping through a slow web
-service or opening a heavy GUI, you run it locally, drop a file in, and read the
+**Audacity** (audio spectrogram). You run it locally, drop a file in, and read the
 result in seconds.
 
 Built and maintained by **hex3n**.
