@@ -134,7 +134,3 @@ export STRIGANO_FLAG_PREFIXES="fort"
 ## License
 
 MIT. See `LICENSE`.
-
-## Author
-
-**hex3n** — 115559784+hex3n@users.noreply.github.com
