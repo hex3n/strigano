@@ -1,8 +1,8 @@
 """Central configuration, resolved from the package location and environment.
 
 Nothing here depends on the current working directory, so the tool behaves the
-same whether launched with ``uvicorn``, ``python -m strigano.cli`` or the
-installed ``strigano`` console script.
+same whether launched with uvicorn, python -m strigano.cli or the
+installed strigano console script.
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ TEMPLATES_DIR = PACKAGE_DIR / "web" / "templates"
 def _output_dir() -> Path:
     """Where generated artifacts (bitplanes, carved files, spectrograms) go.
 
-    Defaults to ``strigano_output`` under the current directory so a pip
+    Defaults to strigano_output under the current directory so a pip
     installed copy never writes into site-packages. Override with
-    ``STRIGANO_OUTPUT``.
+    STRIGANO_OUTPUT.
     """
     env = os.environ.get("STRIGANO_OUTPUT")
     base = Path(env) if env else Path.cwd() / "strigano_output"

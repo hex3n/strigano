@@ -1,6 +1,6 @@
 """OCR-based flag detection over generated bitplanes.
 
-Both the ``pytesseract`` Python package and the ``tesseract`` binary are
+Both the pytesseract Python package and the tesseract binary are
 optional. If either is missing, scanning returns no hits rather than raising,
 so a box without tesseract still produces a full report minus the OCR pass.
 """
@@ -42,7 +42,7 @@ def _preprocess(img_path: str) -> Image.Image | None:
 
 
 def scan_images_for_flags(image_paths: list[str]) -> list[tuple[str, str]]:
-    """Run OCR over each image and return ``(image_path, flag)`` hits."""
+    """Run OCR over each image and return (image_path, flag) hits."""
     if not ocr_available():
         return []
 

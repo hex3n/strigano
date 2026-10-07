@@ -1,6 +1,6 @@
 """Wrappers around the external forensics tools, all optional.
 
-Each returns a :class:`ToolSection` so the report renders a uniform block:
+Each returns a ToolSection so the report renders a uniform block:
 the output when the tool ran, or a clear "not installed" note when it did not.
 """
 
@@ -43,7 +43,7 @@ def exiftool_text(path: str) -> ToolSection:
 
 
 def binwalk(path: str, out_dir: str | Path) -> ToolSection:
-    """Run ``binwalk -e`` and collect carved files (v2 and v3 layouts)."""
+    """Run binwalk -e and collect carved files (v2 and v3 layouts)."""
     out = Path(out_dir)
     base = Path(path).name
 

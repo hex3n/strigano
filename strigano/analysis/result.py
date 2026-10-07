@@ -2,7 +2,7 @@
 
 Both the web templates and the CLI consume these, so the two front ends can
 never drift in what they report. Everything is plain data, JSON serialisable
-via :meth:`to_dict`.
+via to_dict.
 """
 
 from __future__ import annotations

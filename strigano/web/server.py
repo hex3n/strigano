@@ -1,4 +1,4 @@
-"""The FastAPI application. Launch with ``strigano serve`` or uvicorn."""
+"""The FastAPI application. Launch with strigano serve or uvicorn."""
 
 from __future__ import annotations
 

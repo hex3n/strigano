@@ -1,4 +1,4 @@
-"""Command line interface. Installed as the ``strigano`` console script."""
+"""Command line interface. Installed as the strigano console script."""
 
 from __future__ import annotations
 

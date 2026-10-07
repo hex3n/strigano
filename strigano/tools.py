@@ -1,8 +1,8 @@
 """Safe external-tool execution with graceful handling of missing tools.
 
 Every call to an external binary (exiftool, binwalk, steghide, ...) goes
-through :func:`run_tool`. If the binary is not installed, the result simply
-reports ``available=False`` and the caller renders a "not installed" notice
+through run_tool. If the binary is not installed, the result simply
+reports available=False and the caller renders a "not installed" notice
 instead of the whole analysis crashing. This is what lets the same codebase
 run fully on a Kali VM and in a reduced mode on a bare Windows box.
 """
@@ -70,17 +70,10 @@ def run_tool(
     cwd: str | None = None,
     success_returncodes: tuple[int, ...] = (0,),
 ) -> ToolResult:
-    """Run ``<tool> <args...>`` and never raise for an absent or failing tool.
+    """Run the tool and never raise for a missing or failing one.
 
-    Parameters
-    ----------
-    tool:
-        Logical name, looked up in :data:`config.TOOLS`.
-    args:
-        Arguments after the executable.
-    success_returncodes:
-        Return codes treated as success (some tools use non-zero for "found
-        nothing" rather than error).
+    success_returncodes are the exit codes we count as success, since some
+    tools return non-zero just to mean "found nothing".
     """
     path = resolve(tool)
     if path is None:

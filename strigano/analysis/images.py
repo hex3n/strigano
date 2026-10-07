@@ -16,7 +16,7 @@ def save_bitplanes(
 ) -> tuple[list[str], list[str]]:
     """Write the 8 bitplanes per RGB channel plus gray/channel variants.
 
-    Returns ``(bitplane_names, extra_names)``, each relative to ``out_dir``.
+    Returns (bitplane_names, extra_names), each relative to out_dir.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def superimpose_bitplanes(out_dir: str | Path) -> list[str]:
 def extract_appended_data(image_path: str | Path, out_dir: str | Path) -> str | None:
     """Carve any bytes that follow the real end of a PNG or JPEG.
 
-    JPEG can contain several ``FFD9`` markers (thumbnails), so the last one is
+    JPEG can contain several FFD9 markers (thumbnails), so the last one is
     treated as the true end of image rather than the first.
     """
     path = Path(image_path)
@@ -98,7 +98,7 @@ def extract_appended_data(image_path: str | Path, out_dir: str | Path) -> str | 
 def extract_strings(
     filepath: str | Path, min_length: int = 4
 ) -> tuple[list[str], list[str]]:
-    """Return (ASCII, UTF-16LE) printable strings of at least ``min_length``."""
+    """Return (ASCII, UTF-16LE) printable strings of at least min_length."""
     ascii_re = re.compile(rb"[\x20-\x7e]{%d,}" % min_length)
     utf16_re = re.compile(rb"(?:[\x20-\x7e]\x00){%d,}" % min_length)
 
